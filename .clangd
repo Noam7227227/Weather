@@ -1,0 +1,18 @@
+CompileFlags:
+  Add:
+    - -Wno-unknown-warning-option
+    - -D__GNUC__=8
+    - -D__GNUC_MINOR__=4
+    - -D__xtensa__=1
+  Remove:
+    - -mlongcalls
+    - -fstrict-volatile-bitfields
+    - -fno-tree-switch-conversion
+    - -mtext-section-literals
+    - -fno-jump-tables
+    - -freorder-blocks
+  CompilationDatabase: .
+
+Diagnostics:
+  UnusedIncludes: None
+
