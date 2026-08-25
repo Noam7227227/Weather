@@ -13,7 +13,8 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 
-// Function to scan I2C bus on specified pins and return detected address (0 if none)
+// Function to scan I2C bus on specified pins and return detected address (0 if
+// none)
 uint8_t scanI2C(int sda, int scl) {
   Serial.print(F("Scanning I2C bus (SDA="));
   Serial.print(sda);
@@ -27,7 +28,8 @@ uint8_t scanI2C(int sda, int scl) {
     Wire.beginTransmission(address);
     if (Wire.endTransmission() == 0) {
       Serial.print(F(" -> FOUND I2C device at address 0x"));
-      if (address < 16) Serial.print("0");
+      if (address < 16)
+        Serial.print("0");
       Serial.println(address, HEX);
       foundAddr = address;
     }
@@ -45,7 +47,8 @@ void setup() {
 
   dht.begin();
 
-  // Try custom pins (27, 33) first, then fallback to standard ESP32 I2C pins (21, 22)
+  // Try custom pins (27, 33) first, then fallback to standard ESP32 I2C pins
+  // (21, 22)
   int sdaPin = 27;
   int sclPin = 33;
   uint8_t oledAddr = scanI2C(sdaPin, sclPin);
@@ -63,7 +66,8 @@ void setup() {
     sdaPin = 27;
     sclPin = 33;
     Wire.begin(sdaPin, sclPin);
-    Serial.println(F("WARNING: No I2C device detected by scan. Trying 0x3C on pins (27,33)..."));
+    Serial.println(F("WARNING: No I2C device detected by scan. Trying 0x3C on "
+                     "pins (27,33)..."));
   }
 
   // Initialize OLED with detected pins & address
@@ -86,6 +90,16 @@ void setup() {
   display.println(F("Initializing..."));
   display.display();
 }
+
+// 12x12 Sun / Hot Icon
+static const unsigned char PROGMEM hot_sun_bmp[] = {
+    0x09, 0x00, 0x22, 0x40, 0x07, 0x00, 0x0f, 0x80, 0x9f, 0x90, 0x9f, 0x90,
+    0x0f, 0x80, 0x07, 0x00, 0x22, 0x40, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+// 12x12 Snowflake / Cold Icon
+static const unsigned char PROGMEM cold_snowflake_bmp[] = {
+    0x09, 0x00, 0x12, 0x40, 0x24, 0x80, 0x09, 0x00, 0x7f, 0xe0, 0x09, 0x00,
+    0x24, 0x80, 0x12, 0x40, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 void loop() {
   delay(2000); // Wait 2 seconds between readings
@@ -121,9 +135,22 @@ void loop() {
   display.print(F("Temp: "));
   display.print(t);
   display.print(F(" "));
-  display.write(247); // Degree symbol in Adafruit GFX font
+  display.write(247);
   display.println(F("C"));
 
+  // Draw Hot/Cold status with icon
+  display.setCursor(0, 26);
+  if (t >= 25) {
+    display.drawBitmap(0, 25, hot_sun_bmp, 12, 12, SSD1306_WHITE);
+    display.setCursor(16, 26);
+    display.println(F("It's hot in here!"));
+  } else {
+    display.drawBitmap(0, 25, cold_snowflake_bmp, 12, 12, SSD1306_WHITE);
+    display.setCursor(16, 26);
+    display.println(F("It's cold in here!"));
+  }
+
+  display.setCursor(0, 38);
   display.print(F("Humidity: "));
   display.print(h);
   display.println(F(" %"));
