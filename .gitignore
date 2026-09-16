@@ -1,4 +1,8 @@
 .pio
 .vscode
 .cache
-compile_commands.json
+compile_commands.json
+
+# Private credentials & environment files
+include/secrets.h
+.env

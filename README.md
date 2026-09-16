@@ -1,6 +1,6 @@
 # ESP32 Weather Station
 
-An ESP32-based weather station project built using PlatformIO and the Arduino framework. It measures ambient temperature and humidity in real-time, outputs telemetry to the Serial Monitor, tracks Min/Max statistics, and features interactive page navigation via a hardware push button on an OLED display.
+An ESP32-based weather station project built using PlatformIO and the Arduino framework. It measures ambient temperature and humidity in real-time, outputs telemetry to the Serial Monitor, tracks Min/Max statistics, connects to Wi-Fi to sync Network Time Protocol (NTP) time, and features interactive 3-page UI navigation via a hardware push button on an OLED display.
 
 ---
 
@@ -22,13 +22,20 @@ The project was upgraded to function standalone without requiring a USB serial c
 * **On-Screen Diagnostics**: Displays startup initialization progress and hardware error alerts directly on the screen if the DHT sensor fails.
 
 ### Phase 3: Hardware Button & Dual-Page UI Navigation
-The station now features physical interaction and historical statistics tracking:
+Physical interaction and historical statistics tracking:
 * **Push Button Integration (GPIO 25)**: Configured with `INPUT_PULLUP` to switch display screens instantly on button press.
 * **Non-Blocking `millis()` Loop**: Converted sensor reading and button polling to asynchronous `millis()` timing, eliminating delay lag and enabling instant button responsiveness.
-* **Dual-Page Display System**:
-  * **Page 1 (`[Page 1/2: Current]`)**: Shows live temperature, humidity, and Hot/Cold bitmap icons.
-  * **Page 2 (`[Page 2/2: Min/Max]`)**: Tracks and displays historical minimum (`minT`) and maximum (`maxT`) temperatures recorded since power-on.
-* **Enhanced Serial Logging**: Reports live readings along with running Min/Max temperature bounds.
+* **Min/Max Tracking**: Keeps running record of lowest and highest recorded temperatures.
+
+### Phase 4: Wi-Fi Connectivity & Live NTP Clock
+Networking, secure `.env` secret management, and real-time clock synchronization:
+* **`.env` Credentials Management**: Reads Wi-Fi credentials from `.env` via PlatformIO script (`read_env.py`) with template in `.env.example`.
+* **Wi-Fi Integration (`WiFi.h`)**: Connects to local 2.4GHz Wi-Fi networks with a non-blocking 10-second connection timeout fallback.
+* **NTP Time Sync (`time.h`)**: Synchronizes exact date and time over Network Time Protocol (`pool.ntp.org`).
+* **3-Page Display System**:
+  * **Page 1 (`[Page 1/3: Current]`)**: Shows live temperature, humidity, and Hot/Cold bitmap icons.
+  * **Page 2 (`[Page 2/3: Min/Max]`)**: Displays historical minimum (`minT`) and maximum (`maxT`) temperatures recorded since power-on.
+  * **Page 3 (`[Page 3/3: Clock]`)**: Live ticking digital clock displaying Date (`DD/MM/YYYY`), Time (`HH:MM:SS`), and Wi-Fi connection status.
 
 ---
 
@@ -37,7 +44,7 @@ The station now features physical interaction and historical statistics tracking
 ### Bill of Materials (BOM)
 | Component | Quantity | Notes |
 | :--- | :--- | :--- |
-| **ESP32 Development Board** | 1 | NodeMCU-32S / ESP32-WROOM-32 |
+| **ESP32 Development Board** | 1 | NodeMCU-32S / ESP32-WROOM-32 (2.4GHz Wi-Fi capable) |
 | **DHT11 Sensor Module** | 1 | Temperature & Humidity Sensor |
 | **SSD1306 OLED Display** | 1 | 0.96" 128x64 I2C Screen |
 | **Tactile Push Button** | 1 | Connected to GPIO 25 & GND |
@@ -71,9 +78,18 @@ The station now features physical interaction and historical statistics tracking
 
 ## Getting Started
 
-### 1. Prerequisites
-* Install [VS Code](https://code.visualstudio.com/) with the [PlatformIO IDE Extension](https://platformio.org/).
-* Connect your ESP32 board via USB.
+### 1. Private Wi-Fi Credentials Setup (`.env`)
+To prevent committing your Wi-Fi credentials to Git:
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Open `.env` and enter your network credentials:
+   ```env
+   WIFI_SSID=YOUR_WIFI_NAME
+   WIFI_PASSWORD=YOUR_WIFI_PASSWORD
+   ```
+> Note: PlatformIO automatically executes `read_env.py` during compilation to pass `.env` values into C++ preprocessor macros. `.env` is listed in `.gitignore` so your private credentials stay safe!
 
 ### 2. Build & Flash
 Open terminal in the project directory:
