@@ -13,6 +13,34 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 
+#define BUTTON_PIN                                                             \
+  25 // Pin connected to push button (other side connected to GND)
+
+// Page state and navigation
+int page = 0; // 0 = Current Weather, 1 = Min / Max Statistics
+bool lastButtonState = HIGH;
+unsigned long lastDebounceTime = 0;
+const unsigned long debounceDelay = 50; // Ms
+
+// Telemetry state
+unsigned long lastReadTime = 0;
+float t = 0.0f;
+float h = 0.0f;
+float maxT = -100.0f;
+float minT = 100.0f;
+bool firstValidReading = true;
+bool sensorError = false;
+
+// 12x12 Sun / Hot Icon
+static const unsigned char PROGMEM hot_sun_bmp[] = {
+    0x09, 0x00, 0x22, 0x40, 0x07, 0x00, 0x0f, 0x80, 0x9f, 0x90, 0x9f, 0x90,
+    0x0f, 0x80, 0x07, 0x00, 0x22, 0x40, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+// 12x12 Snowflake / Cold Icon
+static const unsigned char PROGMEM cold_snowflake_bmp[] = {
+    0x09, 0x00, 0x12, 0x40, 0x24, 0x80, 0x09, 0x00, 0x7f, 0xe0, 0x09, 0x00,
+    0x24, 0x80, 0x12, 0x40, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
 // Function to scan I2C bus on specified pins and return detected address (0 if
 // none)
 uint8_t scanI2C(int sda, int scl) {
@@ -45,6 +73,9 @@ void setup() {
   delay(1000);
   Serial.println(F("\n--- ESP32 Weather Station Starting ---"));
 
+  // Configure push button pin with internal pull-up resistor
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
   dht.begin();
 
   // Try custom pins (27, 33) first, then fallback to standard ESP32 I2C pins
@@ -54,14 +85,12 @@ void setup() {
   uint8_t oledAddr = scanI2C(sdaPin, sclPin);
 
   if (oledAddr == 0) {
-    // Try standard ESP32 I2C pins
     sdaPin = 21;
     sclPin = 22;
     oledAddr = scanI2C(sdaPin, sclPin);
   }
 
   if (oledAddr == 0) {
-    // Default to 0x3C if scan didn't find anything (hardware connection issue)
     oledAddr = 0x3C;
     sdaPin = 27;
     sclPin = 33;
@@ -70,7 +99,6 @@ void setup() {
                      "pins (27,33)..."));
   }
 
-  // Initialize OLED with detected pins & address
   Wire.begin(sdaPin, sclPin);
   if (!display.begin(SSD1306_SWITCHCAPVCC, oledAddr, true, false)) {
     Serial.println(F("ERROR: SSD1306 allocation failed!"));
@@ -80,7 +108,7 @@ void setup() {
 
   Serial.println(F("OLED Display Initialized successfully!"));
 
-  // Show initial startup screen on OLED
+  // Startup Screen
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
@@ -88,29 +116,15 @@ void setup() {
   display.println(F("ESP32 Weather Station"));
   display.println(F("---------------------"));
   display.println(F("Initializing..."));
+  display.println(F("Button Pin: GPIO 25"));
   display.display();
 }
 
-// 12x12 Sun / Hot Icon
-static const unsigned char PROGMEM hot_sun_bmp[] = {
-    0x09, 0x00, 0x22, 0x40, 0x07, 0x00, 0x0f, 0x80, 0x9f, 0x90, 0x9f, 0x90,
-    0x0f, 0x80, 0x07, 0x00, 0x22, 0x40, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00};
+void updateDisplay() {
+  display.clearDisplay();
+  display.setCursor(0, 0);
 
-// 12x12 Snowflake / Cold Icon
-static const unsigned char PROGMEM cold_snowflake_bmp[] = {
-    0x09, 0x00, 0x12, 0x40, 0x24, 0x80, 0x09, 0x00, 0x7f, 0xe0, 0x09, 0x00,
-    0x24, 0x80, 0x12, 0x40, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-void loop() {
-  delay(2000); // Wait 2 seconds between readings
-
-  float h = dht.readHumidity();
-  float t = dht.readTemperature(); // Celsius
-
-  if (isnan(h) || isnan(t)) {
-    Serial.println(F("Failed to read from DHT sensor!"));
-    display.clearDisplay();
-    display.setCursor(0, 0);
+  if (sensorError) {
     display.println(F("ESP32 Weather Station"));
     display.println(F("---------------------"));
     display.println(F("Sensor Error!"));
@@ -119,41 +133,131 @@ void loop() {
     return;
   }
 
-  // Log to Serial
-  Serial.print(F("Humidity: "));
-  Serial.print(h);
-  Serial.print(F("%  Temperature: "));
-  Serial.print(t);
-  Serial.println(F("°C"));
+  if (page == 0) {
+    // Page 0: Current Telemetry & Icons
+    display.println(F("ESP32 Weather Station"));
+    display.println(F("---------------------"));
 
-  // Update OLED Display
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.println(F("ESP32 Weather Station"));
-  display.println(F("---------------------"));
+    display.print(F("Temp: "));
+    display.print(t);
+    display.print(F(" "));
+    display.write(247);
+    display.println(F("C"));
 
-  display.print(F("Temp: "));
-  display.print(t);
-  display.print(F(" "));
-  display.write(247);
-  display.println(F("C"));
+    // Draw Hot/Cold status with icon
+    display.setCursor(0, 26);
+    if (t >= 25.0f) {
+      display.drawBitmap(0, 25, hot_sun_bmp, 12, 12, SSD1306_WHITE);
+      display.setCursor(16, 26);
+      display.println(F("It's hot in here!"));
+    } else {
+      display.drawBitmap(0, 25, cold_snowflake_bmp, 12, 12, SSD1306_WHITE);
+      display.setCursor(16, 26);
+      display.println(F("It's cold in here!"));
+    }
 
-  // Draw Hot/Cold status with icon
-  display.setCursor(0, 26);
-  if (t >= 25) {
-    display.drawBitmap(0, 25, hot_sun_bmp, 12, 12, SSD1306_WHITE);
-    display.setCursor(16, 26);
-    display.println(F("It's hot in here!"));
+    display.setCursor(0, 38);
+    display.print(F("Humidity: "));
+    display.print(h);
+    display.println(F(" %"));
+
+    display.setCursor(0, 54);
+    display.println(F("[Page 1/2: Current]"));
   } else {
-    display.drawBitmap(0, 25, cold_snowflake_bmp, 12, 12, SSD1306_WHITE);
-    display.setCursor(16, 26);
-    display.println(F("It's cold in here!"));
+    // Page 1: Min / Max Temperature Statistics
+    display.println(F("-- MIN / MAX STATS --"));
+    display.println(F("---------------------"));
+
+    display.print(F("Max Temp: "));
+    display.print(maxT);
+    display.print(F(" "));
+    display.write(247);
+    display.println(F("C"));
+
+    display.print(F("Min Temp: "));
+    display.print(minT);
+    display.print(F(" "));
+    display.write(247);
+    display.println(F("C"));
+
+    display.print(F("Cur Temp: "));
+    display.print(t);
+    display.print(F(" "));
+    display.write(247);
+    display.println(F("C"));
+
+    display.setCursor(0, 38);
+    display.print(F("Humidity: "));
+    display.print(h);
+    display.println(F(" %"));
+
+    display.setCursor(0, 54);
+    display.println(F("[Page 2/2: Min/Max]"));
   }
 
-  display.setCursor(0, 38);
-  display.print(F("Humidity: "));
-  display.print(h);
-  display.println(F(" %"));
-
   display.display();
+}
+
+void loop() {
+  // 1. Non-blocking Button Read & Debounce
+  bool currentReading = digitalRead(BUTTON_PIN);
+  if (currentReading != lastButtonState) {
+    lastDebounceTime = millis();
+    lastButtonState = currentReading;
+  }
+
+  static bool buttonPressedState = HIGH;
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    if (currentReading != buttonPressedState) {
+      buttonPressedState = currentReading;
+      // On button press (LOW transition when using INPUT_PULLUP)
+      if (buttonPressedState == LOW) {
+        page = (page == 0) ? 1 : 0;
+        Serial.print(F("Button pressed. Switched to Page "));
+        Serial.println(page);
+        updateDisplay();
+      }
+    }
+  }
+
+  // 2. Non-blocking Sensor Read Every 2 Seconds
+  if (millis() - lastReadTime >= 2000 || lastReadTime == 0) {
+    lastReadTime = millis();
+
+    float readH = dht.readHumidity();
+    float readT = dht.readTemperature();
+
+    if (isnan(readH) || isnan(readT)) {
+      Serial.println(F("Failed to read from DHT sensor!"));
+      sensorError = true;
+    } else {
+      sensorError = false;
+      h = readH;
+      t = readT;
+
+      if (firstValidReading) {
+        maxT = t;
+        minT = t;
+        firstValidReading = false;
+      } else {
+        if (t > maxT)
+          maxT = t;
+        if (t < minT)
+          minT = t;
+      }
+
+      // Log to Serial
+      Serial.print(F("Humidity: "));
+      Serial.print(h);
+      Serial.print(F("%  Temperature: "));
+      Serial.print(t);
+      Serial.print(F("°C  [Min: "));
+      Serial.print(minT);
+      Serial.print(F("°C, Max: "));
+      Serial.print(maxT);
+      Serial.println(F("°C]"));
+    }
+
+    updateDisplay();
+  }
 }
