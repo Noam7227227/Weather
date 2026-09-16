@@ -1,6 +1,6 @@
 # ESP32 Weather Station
 
-An ESP32-based weather station project built using PlatformIO and the Arduino framework. It measures ambient temperature and humidity in real-time, outputs telemetry to the Serial Monitor, and renders data with custom weather icons on an OLED display.
+An ESP32-based weather station project built using PlatformIO and the Arduino framework. It measures ambient temperature and humidity in real-time, outputs telemetry to the Serial Monitor, tracks Min/Max statistics, and features interactive page navigation via a hardware push button on an OLED display.
 
 ---
 
@@ -21,6 +21,15 @@ The project was upgraded to function standalone without requiring a USB serial c
   * ❄️ **Snowflake Icon**: Rendered alongside `"It's cold in here!"` when temperature $< 25^\circ\text{C}$.
 * **On-Screen Diagnostics**: Displays startup initialization progress and hardware error alerts directly on the screen if the DHT sensor fails.
 
+### Phase 3: Hardware Button & Dual-Page UI Navigation
+The station now features physical interaction and historical statistics tracking:
+* **Push Button Integration (GPIO 25)**: Configured with `INPUT_PULLUP` to switch display screens instantly on button press.
+* **Non-Blocking `millis()` Loop**: Converted sensor reading and button polling to asynchronous `millis()` timing, eliminating delay lag and enabling instant button responsiveness.
+* **Dual-Page Display System**:
+  * **Page 1 (`[Page 1/2: Current]`)**: Shows live temperature, humidity, and Hot/Cold bitmap icons.
+  * **Page 2 (`[Page 2/2: Min/Max]`)**: Tracks and displays historical minimum (`minT`) and maximum (`maxT`) temperatures recorded since power-on.
+* **Enhanced Serial Logging**: Reports live readings along with running Min/Max temperature bounds.
+
 ---
 
 ## Hardware Bill of Materials & Wiring
@@ -31,6 +40,7 @@ The project was upgraded to function standalone without requiring a USB serial c
 | **ESP32 Development Board** | 1 | NodeMCU-32S / ESP32-WROOM-32 |
 | **DHT11 Sensor Module** | 1 | Temperature & Humidity Sensor |
 | **SSD1306 OLED Display** | 1 | 0.96" 128x64 I2C Screen |
+| **Tactile Push Button** | 1 | Connected to GPIO 25 & GND |
 | **Jumper Wires & Breadboard** | - | For circuit connections |
 
 ### Pinout Mapping
@@ -39,25 +49,27 @@ The project was upgraded to function standalone without requiring a USB serial c
                +-----------------------+
                |     ESP32 DevBoard    |
                +-----------------------+
-                |     |     |     |   |
-         3.3V --+     |     |     |   +-- 5V/3.3V
-          GND --------+     |     |   +-- GND
+                |     |     |     |   |   |
+         3.3V --+     |     |     |   |   +-- 5V/3.3V
+          GND --------+-----+-----+---+---+-- GND
        GPIO13 --------------+     |   |
-       GPIO27 (SDA) --------------+   |
-       GPIO33 (SCL) ------------------+
+       GPIO25 (Button) -----------+   |
+       GPIO27 (SDA) ------------------+
+       GPIO33 (SCL) ----------------------+
 ```
 
 | ESP32 Pin | Component | Component Pin | Function |
 | :--- | :--- | :--- | :--- |
 | **GPIO 13** | DHT11 Sensor | Data / OUT | Temperature & Humidity Signal |
+| **GPIO 25** | Push Button | Terminal 1 (Terminal 2 to GND) | Page Toggle Input (Internal Pull-Up) |
 | **GPIO 27** | SSD1306 OLED | SDA | I2C Data Line |
 | **GPIO 33** | SSD1306 OLED | SCL | I2C Clock Line |
 | **3.3V / 5V** | DHT11 & OLED | VCC | Power Supply |
-| **GND** | DHT11 & OLED | GND | Common Ground |
+| **GND** | DHT11, OLED, Button | GND | Common Ground |
 
 ---
 
-##  Getting Started
+## Getting Started
 
 ### 1. Prerequisites
 * Install [VS Code](https://code.visualstudio.com/) with the [PlatformIO IDE Extension](https://platformio.org/).

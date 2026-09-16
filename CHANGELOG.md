@@ -5,6 +5,22 @@ All notable changes to the ESP32 Weather Station project will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-09-16
+
+### Added
+- **Push Button Integration (GPIO 25)** configured with `INPUT_PULLUP` for interactive UI navigation.
+- **Dual-Page Display System**:
+  - **Page 1**: Live temperature, humidity, and Hot/Cold weather status icons.
+  - **Page 2**: Historical Minimum (`minT`) and Maximum (`maxT`) temperature statistics tracking.
+- **Non-Blocking Execution Loop**: Replaced blocking `delay(2000)` with asynchronous `millis()` timing for sensor polling and debounced button reading.
+- Min/Max temperature bounds outputted to Serial Monitor telemetry.
+
+### Changed
+- Refactored OLED rendering logic into dedicated `updateDisplay()` function.
+- Updated circuit pinout, ASCII diagrams, and BOM table in `README.md`.
+
+---
+
 ## [1.1.0] - 2026-08-28
 
 ### Added
