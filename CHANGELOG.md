@@ -5,6 +5,24 @@ All notable changes to the ESP32 Weather Station project will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-09-16
+
+### Added
+- **Wi-Fi Connectivity (`WiFi.h`)** with 10-second non-blocking connection timeout fallback.
+- **NTP Time Synchronization (`time.h`)** via `pool.ntp.org` configured for Israel Timezone (UTC+2 / Daylight Savings).
+- **3-Page OLED Display Navigation**:
+  - **Page 1**: Real-time telemetry, Hot/Cold weather status icons.
+  - **Page 2**: Historical Minimum (`minT`) and Maximum (`maxT`) temperature stats.
+  - **Page 3**: Live digital clock displaying Date (`DD/MM/YYYY`), Time (`HH:MM:SS`), and Wi-Fi status.
+- Automatic 1-second live screen tick update when viewing Page 3 (Clock).
+
+### Changed
+- Expanded hardware push button cycling from 2 pages to 3 pages (`0 -> 1 -> 2 -> 0`).
+- Updated startup screen to report Wi-Fi connection progress.
+- Updated `README.md` with Phase 4 evolution and Wi-Fi configuration instructions.
+
+---
+
 ## [1.2.0] - 2026-09-16
 
 ### Added
