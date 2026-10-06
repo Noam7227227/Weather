@@ -2,9 +2,9 @@ name: PlatformIO CI/CD Checks
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "Features" ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "Features" ]
 
 permissions:
   contents: read
