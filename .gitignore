@@ -6,3 +6,8 @@ compile_commands.json
 # Private credentials & environment files
 include/secrets.h
 .env
+
+# Python cache
+__pycache__/
+*.pyc
+__pycache__
