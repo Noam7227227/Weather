@@ -1,15 +1,19 @@
 #include "DHT.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <LittleFS.h>
+#include <WebServer.h>
 #include <WiFi.h>
 #include <Wire.h>
 #include <time.h>
+
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+WebServer server(80);
 
 #define DHTPIN 13
 #define DHTTYPE DHT11
@@ -35,6 +39,7 @@ const int DAYLIGHT_OFFSET_SEC = 3600; // Daylight savings offset
 
 // Wi-Fi state
 bool wifiConnected = false;
+bool littleFsReady = false;
 
 // Page state and navigation (0 = Current, 1 = Min/Max, 2 = Date & Time)
 int page = 0;
@@ -89,6 +94,31 @@ uint8_t scanI2C(int sda, int scl) {
   return foundAddr;
 }
 
+void handleRoot() {
+  if (!littleFsReady) {
+    server.send(500, "text/plain", "LittleFS is unavailable");
+    return;
+  }
+
+  File htmlFile = LittleFS.open("/index.html", "r");
+  if (!htmlFile) {
+    server.send(404, "text/plain", "Web page not found in LittleFS");
+    return;
+  }
+
+  String html = htmlFile.readString();
+  htmlFile.close();
+
+  html.replace("{{ERROR_DISPLAY}}", sensorError ? "flex" : "none");
+  html.replace("{{DATA_DISPLAY}}", sensorError ? "none" : "block");
+  html.replace("{{TEMPERATURE}}", String(t, 1));
+  html.replace("{{HUMIDITY}}", String(h, 1));
+  html.replace("{{MIN_TEMPERATURE}}", String(minT, 1));
+  html.replace("{{MAX_TEMPERATURE}}", String(maxT, 1));
+
+  server.send(200, "text/html", html);
+}
+
 void setupWiFi() {
   Serial.print(F("Connecting to Wi-Fi: "));
   Serial.println(WIFI_SSID);
@@ -118,16 +148,29 @@ void setupWiFi() {
 
   if (WiFi.status() == WL_CONNECTED) {
     wifiConnected = true;
-    Serial.print(F("Wi-Fi Connected! IP: "));
-    Serial.println(WiFi.localIP());
 
+    // Display IP on OLED screen
     display.println(F("Wi-Fi Connected!"));
+    display.print(F("IP: "));
+    display.println(WiFi.localIP());
     display.display();
-    delay(800);
+    delay(2000);
 
     // Synchronize time via NTP
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
     Serial.println(F("NTP Time synchronization initialized."));
+
+    // Configure WebServer HTTP endpoints & start server
+    server.on("/", handleRoot);
+    server.begin();
+
+    // Print prominent banner to Serial Terminal
+    Serial.println(F("\n=================================================="));
+    Serial.println(F("          WI-FI CONNECTED SUCCESSFULLY!           "));
+    Serial.println(F("--------------------------------------------------"));
+    Serial.print(F("  Browse to: http://"));
+    Serial.println(WiFi.localIP());
+    Serial.println(F("==================================================\n"));
   } else {
     wifiConnected = false;
     Serial.println(F("Wi-Fi Connection Timeout. Running in Offline Mode."));
@@ -177,6 +220,14 @@ void setup() {
   }
 
   Serial.println(F("OLED Display Initialized successfully!"));
+
+  littleFsReady = LittleFS.begin();
+  if (littleFsReady) {
+    Serial.println(F("LittleFS mounted successfully."));
+  } else {
+    Serial.println(
+        F("ERROR: LittleFS mount failed. Upload the filesystem image."));
+  }
 
   // Attempt Wi-Fi Connection and NTP Sync
   setupWiFi();
@@ -273,16 +324,26 @@ void updateDisplay() {
       display.print(F("Time: "));
       display.println(timeStr);
 
-      display.setCursor(0, 38);
+      display.setCursor(0, 32);
       display.print(F("WiFi: Connected"));
     } else {
       display.println(F("Date: N/A"));
       display.println(F("Time: N/A"));
-      display.setCursor(0, 38);
+      display.setCursor(0, 32);
       display.println(F("WiFi: Offline Mode"));
     }
 
-    display.setCursor(0, 54);
+    if (wifiConnected) {
+      display.setCursor(0, 40);
+      display.println(F("Website: http://"));
+      display.setCursor(0, 48);
+      display.println(WiFi.localIP());
+    } else {
+      display.setCursor(0, 40);
+      display.println(F("Website: unavailable"));
+    }
+
+    display.setCursor(0, 56);
     display.println(F("[Page 3/3: Clock]"));
   }
 
@@ -290,6 +351,11 @@ void updateDisplay() {
 }
 
 void loop() {
+  // 0. Process Web Server Requests
+  if (wifiConnected) {
+    server.handleClient();
+  }
+
   // 1. Non-blocking Button Read & Debounce
   bool currentReading = digitalRead(BUTTON_PIN);
   if (currentReading != lastButtonState) {
@@ -336,17 +402,6 @@ void loop() {
         if (t < minT)
           minT = t;
       }
-
-      // Log to Serial
-      Serial.print(F("Humidity: "));
-      Serial.print(h);
-      Serial.print(F("%  Temperature: "));
-      Serial.print(t);
-      Serial.print(F("°C  [Min: "));
-      Serial.print(minT);
-      Serial.print(F("°C, Max: "));
-      Serial.print(maxT);
-      Serial.println(F("°C]"));
     }
 
     if (page != 2) {

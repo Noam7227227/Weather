@@ -5,6 +5,17 @@ All notable changes to the ESP32 Weather Station project will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-10-06
+
+### Added
+- External web dashboard at `data/index.html`, served from the ESP32's LittleFS filesystem.
+- Web dashboard telemetry for temperature, humidity, minimum/maximum temperature, and sensor errors, with a 5-second automatic refresh.
+
+### Changed
+- Moved the web page markup and styling out of `src/main.cpp`; the firmware now loads the page from LittleFS and fills in current sensor values.
+- Configured PlatformIO to use LittleFS. The filesystem image must be uploaded separately with `platformio run --target uploadfs` after building the page.
+- Kept the NTP-synchronized clock on OLED Page 3; the web dashboard no longer displays the clock.
+
 ## [1.3.0] - 2026-09-16
 
 ### Added

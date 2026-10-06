@@ -21,7 +21,7 @@ The project was upgraded to function standalone without requiring a USB serial c
   * ❄️ **Snowflake Icon**: Rendered alongside `"It's cold in here!"` when temperature $< 25^\circ\text{C}$.
 * **On-Screen Diagnostics**: Displays startup initialization progress and hardware error alerts directly on the screen if the DHT sensor fails.
 
-### Phase 3: Hardware Button & Dual-Page UI Navigation
+### Phase 3: Hardware Button & OLED Navigation
 Physical interaction and historical statistics tracking:
 * **Push Button Integration (GPIO 25)**: Configured with `INPUT_PULLUP` to switch display screens instantly on button press.
 * **Non-Blocking `millis()` Loop**: Converted sensor reading and button polling to asynchronous `millis()` timing, eliminating delay lag and enabling instant button responsiveness.
@@ -36,6 +36,12 @@ Networking, secure `.env` secret management, and real-time clock synchronization
   * **Page 1 (`[Page 1/3: Current]`)**: Shows live temperature, humidity, and Hot/Cold bitmap icons.
   * **Page 2 (`[Page 2/3: Min/Max]`)**: Displays historical minimum (`minT`) and maximum (`maxT`) temperatures recorded since power-on.
   * **Page 3 (`[Page 3/3: Clock]`)**: Live ticking digital clock displaying Date (`DD/MM/YYYY`), Time (`HH:MM:SS`), and Wi-Fi connection status.
+
+### Phase 5: LittleFS Web Dashboard
+* **External HTML Page**: The dashboard markup and styling are in `data/index.html`, separate from the firmware source.
+* **LittleFS Hosting**: PlatformIO packages the `data/` directory as a LittleFS image, and the ESP32 serves `/index.html` at its root URL.
+* **Live Telemetry**: The page displays temperature, humidity, min/max temperature, and a sensor-error state. It automatically reloads every 5 seconds.
+* **OLED Clock**: NTP-synchronized time remains on OLED Page 3; the web dashboard does not display the clock.
 
 ---
 
@@ -101,8 +107,16 @@ platformio run
 # Flash firmware to connected ESP32
 platformio run --target upload
 
+# Upload the web page to LittleFS
+platformio run --target uploadfs
+
 # Open Serial Monitor
 platformio device monitor
 ```
+
+The web interface is stored in `data/index.html` and served from LittleFS. Upload
+the filesystem image separately from the firmware, and repeat the filesystem
+upload whenever you change the page. Close the Serial Monitor before uploading
+to a port it currently holds open.
 
 ---
